@@ -4,6 +4,10 @@ import tsConfigPaths from 'vite-tsconfig-paths'
 export default defineConfig({
   server: {
     preset: 'vercel',
+    prerender: {
+      routes: ['/docs'],
+      crawlLinks: true,
+    }
   },
   vite: {
     plugins: [
