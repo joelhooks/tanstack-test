@@ -7,6 +7,10 @@ export default defineConfig({
     prerender: {
       routes: ['/docs'],
       crawlLinks: true,
+      ignore: [
+        // Ignore dynamic API routes
+        '/api/**',
+      ],
     }
   },
   vite: {
