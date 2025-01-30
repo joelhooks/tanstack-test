@@ -1,26 +1,28 @@
-import * as fs from 'node:fs'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/start'
+import { Redis } from '@upstash/redis'
 
-const filePath = 'count.txt'
-
-async function readCount() {
-  return parseInt(
-    await fs.promises.readFile(filePath, 'utf-8').catch(() => '0'),
-  )
-}
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+})
 
 const getCount = createServerFn({
   method: 'GET',
-}).handler(() => {
-  return readCount()
+}).handler(async () => {
+  const current = await redis.get<number>('counter')
+  return current ?? 0
 })
 
 const updateCount = createServerFn({ method: 'POST' })
-  .validator((d: number) => d)
-  .handler(async ({ data }) => {
-    const count = await readCount()
-    await fs.promises.writeFile(filePath, `${count + data}`)
+  .validator((formData: FormData) => {
+    const addBy = formData.get('addBy')
+    if (!addBy) throw new Error('Missing addBy in form data')
+    return Number(addBy)
+  })
+  .handler(async ({ data: increment }) => {
+    await redis.incrby('counter', increment)
+    return new Response(null, { status: 204 })
   })
 
 export const Route = createFileRoute('/')({
@@ -36,7 +38,9 @@ function Home() {
     <button
       type="button"
       onClick={() => {
-        updateCount({ data: 1 }).then(() => {
+        const formData = new FormData()
+        formData.append('addBy', '1')
+        updateCount({ data: formData }).then(() => {
           router.invalidate()
         })
       }}
